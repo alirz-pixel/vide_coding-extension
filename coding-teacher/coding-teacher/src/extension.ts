@@ -1,4 +1,6 @@
 import * as vscode from "vscode";
+import * as fs from "fs";
+import * as path from "path";
 
 const SERVER_URL = "http://localhost:8765/analyze";
 const DEBOUNCE_MS = 5 * 1000; // 5초 
@@ -160,112 +162,16 @@ function getWebviewHtml(
 	context: vscode.ExtensionContext,
 	webview: vscode.Webview
 ): string {
+	const htmlPath = path.join(context.extensionPath, "webview", "panel.html");
 	const characterUri = webview.asWebviewUri(
 		vscode.Uri.joinPath(context.extensionUri, "assets", "character.png")
 	);
 	const nonce = Math.random().toString(36).substring(2);
 
-	return `
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-	<meta charset="UTF-8">
-	<meta http-equiv="Content-Security-Policy"
-		content="default-src 'none';
-				img-src ${webview.cspSource} https:;
-				script-src 'nonce-${nonce}';
-				style-src 'unsafe-inline';
-				connect-src http://localhost:8765;">
-	<style>
-		body {
-			display: flex;
-			flex-direction: column;
-			align-items: center;
-			justify-content: flex-end;
-			height: 100vh;
-			margin: 0;
-			background: var(--vscode-editor-background);
-			color: var(--vscode-editor-foreground);
-			font-family: var(--vscode-font-family);
-			padding: 20px;
-			box-sizing: border-box;
-		}
-		.speech-bubble {
-			background: var(--vscode-input-background);
-			border: 1px solid var(--vscode-input-border);
-			border-radius: 16px;
-			padding: 14px 18px;
-			font-size: 13px;
-			line-height: 1.7;
-			width: 90%;
-			max-width: 640px;
-			min-height: 60px;
-			max-height: 60vh;
-			overflow-y: auto;
-			white-space: pre-wrap;
-			word-break: break-word;
-			position: relative;
-			box-shadow: 0 2px 12px rgba(0,0,0,0.3);
-		}
-		.speech-bubble::after {
-			content: '';
-			position: absolute;
-			bottom: -12px;
-			left: 50%;
-			transform: translateX(-50%);
-			border: 7px solid transparent;
-			border-top-color: var(--vscode-input-border);
-		}
-		.typing::after {
-			content: '▍';
-			animation: blink 0.6s infinite;
-			color: var(--vscode-focusBorder);
-		}
-		@keyframes blink {
-			0%, 100% { opacity: 1; }
-			50%      { opacity: 0; }
-		}
-		.character {
-			width: 160px;
-			height: 160px;
-			object-fit: cover;
-			border-radius: 12px;
-			margin-top: 16px;
-			border: 2px solid var(--vscode-input-border);
-		}
-	</style>
-	</head>
-	<body>
-	<div class="speech-bubble" id="bubble">
-		코드를 작성하면 피드백을 줄게요
-	</div>
-	<img src="${characterUri}" class="character"
-		onerror="this.style.display='none'" alt="선생님">
-
-	<script nonce="${nonce}">
-		const bubble = document.getElementById('bubble');
-
-		window.addEventListener('message', (event) => {
-		const msg = event.data;
-
-		if (msg.type === 'start') {
-			bubble.textContent = '';
-			bubble.classList.add('typing');
-		} else if (msg.type === 'token') {
-			bubble.textContent += msg.content;
-			bubble.scrollTop = bubble.scrollHeight;
-		} else if (msg.type === 'done') {
-			bubble.classList.remove('typing');
-		} else if (msg.type === 'reset') {
-			bubble.textContent = '대화가 초기화됐어요! 새로 시작해봐요;';
-		} else if (msg.type === 'error') {
-			bubble.textContent = '⚠️ ' + msg.content;
-			bubble.classList.remove('typing');
-		}
-		});
-  </script>
-</body>
-</html>`;
+	return fs.readFileSync(htmlPath, "utf8")
+		.replace(/{{cspSource}}/g, webview.cspSource)
+        .replace(/{{nonce}}/g, nonce)
+        .replace(/{{characterUri}}/g, characterUri.toString());
 }
 
 export function deactivate() {

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none';
+				img-src {{cspSource}} https:;
+				script-src 'nonce-{{nonce}}';
+				style-src 'unsafe-inline';
+				connect-src http://localhost:8765;">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            height: 100vh;
+            margin: 0;
+            background: var(--vscode-editor-background);
+            color: var(--vscode-editor-foreground);
+            font-family: var(--vscode-font-family);
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .speech-bubble {
+            background: var(--vscode-input-background);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 16px;
+            padding: 14px 18px;
+            font-size: 13px;
+            line-height: 1.7;
+            width: 90%;
+            max-width: 640px;
+            min-height: 60px;
+            max-height: 60vh;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            position: relative;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 7px solid transparent;
+            border-top-color: var(--vscode-input-border);
+        }
+
+        #cursor {
+            animation: blink 0.6s infinite;
+            color: var(--vscode-focusBorder);
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0;
+            }
+        }
+
+        .character {
+            width: 160px;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 12px;
+            margin-top: 16px;
+            border: 2px solid var(--vscode-input-border);
+        }
+
+        .centered {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="speech-bubble centered" id="bubble">코드를 작성하면 피드백을 줄게요</div>
+    <img src="{{characterUri}}" class="character" onerror="this.style.display='none'" alt="선생님">
+
+    <script nonce="{{nonce}}">
+        const bubble = document.getElementById('bubble');
+
+        function renderWithCursor(showCursor) {
+            const cursorHtml = showCursor ? '<span id="cursor">▍</span>' : '';
+            bubble.innerHTML = bubble.dataset.text
+                ? bubble.dataset.text.replace(/\n/g, '<br>') + cursorHtml
+                : cursorHtml
+        }
+
+        window.addEventListener('message', (event) => {
+            const msg = event.data;
+
+            if (msg.type === 'start') {
+                bubble.dataset.text = '';
+                bubble.classList.remove('centered');
+                renderWithCursor(true);                
+            } else if (msg.type === 'token') {
+                bubble.dataset.text = (bubble.dataset.text || '') + msg.content;
+                renderWithCursor(true);
+                bubble.scrollTop = bubble.scrollHeight;
+            } else if (msg.type === 'done') {
+                renderWithCursor(false);
+            } else if (msg.type === 'reset') {
+                bubble.dataset.text = '';
+                bubble.textContent = '대화가 초기화됐어요! 새로 시작해봐요;';
+                bubble.classList.add('centered');
+            } else if (msg.type === 'error') {
+                bubble.dataset.text = '';
+                bubble.textContent = '⚠️ ' + msg.content;
+            }
+        });
+    </script>
+</body>
+
+</html>
