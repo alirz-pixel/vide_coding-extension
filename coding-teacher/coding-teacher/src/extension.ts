@@ -93,15 +93,16 @@ async function analyze(code: string, language: string) {
 
 	panel.webview.postMessage({ type: "start" });
 
-	const diff = extractDiff(lastCode, code); // diff 추출
-	console.log(diff);
+	// diff의 변경 사항으로 인해 코드가 2개 작성된 것으로 오인할 떄가 있음
+	// const diff = extractDiff(lastCode, code); 
+	// console.log(diff);
 
-	console.log(history)
+	console.log(history);
 	try {
 		const response = await fetch(SERVER_URL, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ code, language, history, diff }),
+			body: JSON.stringify({ code, language, history, lastCode }),
 		});
 
 		if (!response.body) { return; }
@@ -134,14 +135,15 @@ async function analyze(code: string, language: string) {
 						lastCode = currentCode;
 
 						// 히스토리에 누적
-						if (diff) {
-							history.push({ role: "user", content: `변경사항:\n${diff}` });
-						}
+						// 코드 변경사항으로 인해 '중복' 코드로 인식 되는 경우가 있음
+						// if (diff) {
+							// history.push({ role: "user", content: `변경사항:\n${diff}` });
+						// }
 						history.push({ role: "assistant", content: parsed.full });
 
 						// 히스토리가 너무 길어지면 앞에서 자르기 (최근 3턴만 유지)
-						if (history.length > 6) {
-							history = history.slice(history.length - 6);
+						if (history.length > 3) {
+							history = history.slice(history.length - 3);
 						}
 
 						panel?.webview.postMessage({ type: "done" });
