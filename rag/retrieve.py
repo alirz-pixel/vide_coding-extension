@@ -1,10 +1,16 @@
 import chromadb
 import ollama
 
+from pathlib import Path
 from sentence_transformers import SentenceTransformer
 
+from prompts.builder import PromptBuilder
+
+BASE_PATH = Path(__file__).parent
+
 model = SentenceTransformer("BAAI/bge-m3")  # VRAM: ~ 3GB
-client = chromadb.PersistentClient(path="./rag/chroma_db")
+client = chromadb.PersistentClient(path=BASE_PATH / "chroma_db")
+builder = PromptBuilder("keyword.yaml")
 
 NOISE_KEYWORDS = {
     "cpp": ["int", "main", "return", "using", "namespace", "std", "cin", "cout", "endl", "include"],
@@ -19,23 +25,11 @@ ALGORITHM_KEYWORDS = [
     "vector", "array", "list", "map", "set", "priority"
 ]
 
-
-KEYWORD_EXTRACT_PROMPT = """
-You are a code analyzer. Look at the code structure and infer what algorithm or data structure is being implemented, even if the name is not explicitly mentioned.
-
-For example:
-- Node with left/right pointers + recursive insert/search → binary search tree BST
-- Array with nested loops comparing adjacent elements → bubble sort
-- Node with next pointer → linked list
-
-Output 5 to 8 keywords only, separated by spaces, no explanation.
-"""
-
 def extract_keywords_llm(code: str) -> str:
     response = ollama.chat(
         model="qwen2.5:1.5b",
         messages=[
-            {"role": "system", "content": KEYWORD_EXTRACT_PROMPT},
+            {"role": "system", "content": builder.build_system()},
             {"role": "user", "content": code}
         ]
     )
