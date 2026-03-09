@@ -3,7 +3,6 @@ import * as fs from "fs";
 import * as path from "path";
 
 const SERVER_URL = "http://localhost:8765/analyze";
-const DEBOUNCE_MS = 5 * 1000; // 5초 
 
 let panel: vscode.WebviewPanel | undefined;
 let debounceTimer: NodeJS.Timeout | undefined;
@@ -34,21 +33,17 @@ export function activate(context: vscode.ExtensionContext) {
 		})
 	);
 
-	// 타이핑 감지 → 디바운스
+	// 코드가 저장될 때 호출하도록 함
 	context.subscriptions.push(
-		vscode.workspace.onDidChangeTextDocument((event) => {
+		vscode.workspace.onDidSaveTextDocument((document) => {
 			const editor = vscode.window.activeTextEditor;
-			if (!editor || event.document !== editor.document) { return; }
-			if (event.contentChanges.length === 0) { return; }
+			if (!editor || document !== editor.document) { return; }
 
 			if (!panel) { openPanel(context); }
 
-			clearTimeout(debounceTimer);
-			debounceTimer = setTimeout(() => {
-				const code = editor.document.getText();
-				const language = editor.document.languageId;
-				analyze(code, language);
-			}, DEBOUNCE_MS);
+			const code = editor.document.getText();
+			const language = editor.document.languageId;
+			analyze(code, language);
 		})
 	);
 }
